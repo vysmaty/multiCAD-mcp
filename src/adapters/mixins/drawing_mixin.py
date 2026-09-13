@@ -511,12 +511,12 @@ class DrawingMixin:
         lineweight: int = 0,
         _skip_refresh: bool = False,
     ) -> str:
-        """Draw a NURBS spline curve through the given control points via COM AddSpline().
+        """Draw a cubic NURBS spline through fit points via COM AddSpline().
 
         Args:
-            points: Ordered list of at least 2 control-point coordinates.
+            points: Ordered list of at least 2 fit-point coordinates.
             closed: When True, close the spline back to the first point.
-            degree: Polynomial degree of the spline (1, 2, or 3). Default: 3.
+            degree: Must be 3; ActiveX AddSpline does not accept a degree argument.
             layer: Layer name for the entity (default: ``"0"``).
             color: Color name or ACI index (default: ``"white"``).
             lineweight: Line weight in hundredths of mm; 0 uses default.
@@ -526,27 +526,31 @@ class DrawingMixin:
             Handle string of the created spline entity.
 
         Raises:
-            InvalidParameterError: If fewer than 2 points are provided or degree is outside 1–3.
+            InvalidParameterError: If fewer than 2 points or a non-cubic degree is given.
         """
         document = self._get_document("draw_spline")
 
         if len(points) < 2:
             raise InvalidParameterError("points", points, "at least 2 points")
 
-        if not (1 <= degree <= 3):
-            raise InvalidParameterError("degree", degree, "value between 1 and 3")
+        if degree != 3:
+            raise InvalidParameterError("degree", degree, "3 (ActiveX fit spline)")
 
         # Convert to 3D points and flatten to variant array
         normalized_points = [CADInterface.normalize_coordinate(p) for p in points]
         variant_points = self._points_to_variant_array(normalized_points)
 
-        # Create spline
-        # AutoCAD expects: points array, start tangent, end tangent, degree
-        # For a natural spline, we can pass empty tangents
-        spline = document.ModelSpace.AddSpline(variant_points, None, None, degree)
+        # ActiveX takes three arguments. Zero vectors request natural tangents.
+        tangent = self._to_variant_array((0.0, 0.0, 0.0))
+        spline = document.ModelSpace.AddSpline(variant_points, tangent, tangent)
 
         if closed:
-            spline.Closed = True
+            try:
+                # Closed is read-only for splines; Closed2 is the writable property.
+                spline.Closed2 = True
+            except Exception:
+                spline.Delete()
+                raise
 
         return self._finalize_entity(
             spline,
