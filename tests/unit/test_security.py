@@ -44,8 +44,11 @@ class TestPathTraversal:
             traversal_path = (parent_dir / "dangerous.txt").resolve()
 
             # Use pytest.raises with exception type only
-            with pytest.raises(Exception):  # Catch any exception
-                adapter._validate_export_path(traversal_path, output_dir)
+            # Explicitly test restricted mode, independent of the user's config.
+            with patch("adapters.mixins.utility_mixin.ConfigManager") as config:
+                config.return_value.config.output.allow_arbitrary_paths = False
+                with pytest.raises(Exception):
+                    adapter._validate_export_path(traversal_path, output_dir)
 
     def test_resolve_export_path_allows_safe_paths(self):
         """Test that resolve_export_path allows legitimate paths."""

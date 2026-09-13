@@ -16,6 +16,7 @@ coverage_report.txt
 
 # Test artifacts
 test_*.py
+!tests/**/test_*.py
 test_*.png
 test_*.txt
 verify_*.py
