@@ -45,7 +45,7 @@ class TestPathTraversal:
 
             # Use pytest.raises with exception type only
             # Explicitly test restricted mode, independent of the user's config.
-            with patch("adapters.mixins.utility_mixin.ConfigManager") as config:
+            with patch("src.adapters.mixins.utility_mixin.ConfigManager") as config:
                 config.return_value.config.output.allow_arbitrary_paths = False
                 with pytest.raises(Exception):
                     adapter._validate_export_path(traversal_path, output_dir)
